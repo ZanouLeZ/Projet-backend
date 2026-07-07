@@ -1,8 +1,8 @@
-const http = require("http");
-const app = require("./app");
+import http from "http";
+import app from "./app.ts";
 
-const normalizePort = (val) => {
-  const port = parseInt(val, 10);
+const normalizePort = (val: string | number) => {
+  const port = parseInt(val as string, 10);
   if (isNaN(port)) {
     return val;
   }
@@ -14,7 +14,7 @@ const normalizePort = (val) => {
 const port = normalizePort(process.env.PORT || "3000");
 app.set("port", port);
 
-const errorHandler = (error) => {
+const errorHandler = (error: NodeJS.ErrnoException) => {
   if (error.syscall !== "listen") {
     throw error;
   }

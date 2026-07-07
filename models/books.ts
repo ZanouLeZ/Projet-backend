@@ -1,14 +1,18 @@
-const mongoose = require("mongoose");
-const required = (Type: any) => ({
-  Type,
-  required: true,
-});
-const bookSchema = mongoose.Schema({
-  title: required(String),
-  description: required(String),
-  imageUrl: required(String),
+import mongoose from "mongoose";
+import { required } from "../utils.ts";
+
+const bookSchema = new mongoose.Schema({
   userId: required(String),
-  price: required(Number),
+  title: required(String),
+  author: required(String),
+  imageUrl: required(String),
+  year: required(Number),
+  genre: required(String),
+  rating: {
+    userId: { type: String },
+    grade: { type: Number },
+  },
+  averageRating: { type: Number, default: 0 },
 });
 
-module.exports = mongoose.model("Thing", bookSchema);
+export default mongoose.model("Books", bookSchema);
