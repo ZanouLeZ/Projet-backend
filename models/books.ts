@@ -1,6 +1,14 @@
 import mongoose from "mongoose";
 import { required } from "../utils.ts";
 
+const ratingSchema = new mongoose.Schema(
+  {
+    userId: required(String),
+    grade: required(Number),
+  },
+  { _id: false },
+);
+
 const bookSchema = new mongoose.Schema({
   userId: required(String),
   title: required(String),
@@ -8,10 +16,7 @@ const bookSchema = new mongoose.Schema({
   imageUrl: required(String),
   year: required(Number),
   genre: required(String),
-  rating: {
-    userId: { type: String },
-    grade: { type: Number },
-  },
+  ratings: [ratingSchema],
   averageRating: { type: Number, default: 0 },
 });
 

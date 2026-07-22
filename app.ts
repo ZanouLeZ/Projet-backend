@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
+import authRoutes from "./routes/auth.ts";
 import bookRoutes from "./routes/stuff.ts";
 
 const app = express();
@@ -13,11 +14,7 @@ mongoose
 
 // Middleware CORS
 app.use(
-  (
-    _req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-  ) => {
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
       "Access-Control-Allow-Headers",
@@ -27,26 +24,17 @@ app.use(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     );
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+
     next();
   },
 );
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
-
-//auth
-
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept",
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-  );
-  next();
-});
 
 export default app;

@@ -1,26 +1,83 @@
 import express from "express";
+import multer from "multer";
 import Books from "../models/books.ts";
-import Ratings from "../models/users.ts";
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
-router.post("/", async (req: express.Request, res: express.Response) => {
-  try {
-    const book = new Books({
-      title: req.body.title,
-      description: req.body.description,
-      imageUrl: req.body.imageUrl,
-      price: req.body.price,
-      userId: req.body.userId,
-    });
-    await book.save();
-    res.status(201).json({
-      message: "Book saved successfully!",
-    });
-  } catch (error) {
-    res.status(400).json({ error });
+const parseBookPayload = (req: express.Request) => {
+  const body = req.body ?? {};
+  const candidate = typeof body === "object" && body !== null ? body : {};
+
+  if (candidate.book && typeof candidate.book === "string") {
+    try {
+      return JSON.parse(candidate.book);
+    } catch {
+      return candidate;
+    }
   }
-});
+
+  if (candidate.book && typeof candidate.book === "object") {
+    return candidate.book;
+  }
+
+  return candidate;
+};
+
+const normalizeBookPayload = (req: express.Request) => {
+  const payload = parseBookPayload(req) as Record<string, any>;
+  const inputRatings = Array.isArray(payload.ratings) ? payload.ratings : [];
+  const firstRating = inputRatings[0] ?? {};
+
+  const normalizedRatings = inputRatings.map((rating: any) => ({
+    userId: rating.userId ?? payload.userId ?? "anonymous",
+    grade: Number(rating.grade ?? 0),
+  }));
+
+  if (payload.rating !== undefined && normalizedRatings.length === 0) {
+    normalizedRatings.push({
+      userId: payload.userId ?? "anonymous",
+      grade: Number(payload.rating ?? 0),
+    });
+  }
+
+  const averageRating = Number(
+    payload.averageRating ?? payload.rating ?? firstRating.grade ?? 0,
+  );
+
+  return {
+    userId: payload.userId ?? "anonymous",
+    title: payload.title ?? "Sans titre",
+    author: payload.author ?? "Auteur inconnu",
+    imageUrl:
+      payload.imageUrl ?? "https://via.placeholder.com/300x450?text=Book",
+    year: Number(payload.year ?? 0),
+    genre: payload.genre ?? "Non spécifié",
+    ratings: normalizedRatings,
+    averageRating: normalizedRatings.length
+      ? normalizedRatings.reduce(
+          (sum, item) => sum + Number(item.grade || 0),
+          0,
+        ) / normalizedRatings.length
+      : averageRating,
+  };
+};
+
+router.post(
+  "/",
+  upload.fields([{ name: "book" }, { name: "image" }]),
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const payload = normalizeBookPayload(req);
+      const book = new Books(payload);
+      await book.save();
+      res.status(201).json(book);
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({ error });
+    }
+  },
+);
 
 router.get("/", async (req: express.Request, res: express.Response) => {
   try {
@@ -31,11 +88,12 @@ router.get("/", async (req: express.Request, res: express.Response) => {
   }
 });
 
+// IMPORTANT : cette route doit rester AVANT "/:id"
 router.get(
   "/bestrating",
   async (req: express.Request, res: express.Response) => {
     try {
-      const books = await Books.find().sort({ rating: -1 });
+      const books = await Books.find().sort({ averageRating: -1 }).limit(3);
       res.status(200).json(books);
     } catch (error) {
       res.status(400).json({ error });
@@ -43,35 +101,46 @@ router.get(
   },
 );
 
-router.get("/:name", async (req: express.Request, res: express.Response) => {
-  try {
-    const book = await Books.find({
-      title: new RegExp(req.params.name as string, "i"),
-    });
-    res.status(200).json(book);
-  } catch (error) {
-    res.status(404).json({ error });
-  }
-});
+// Renommée pour ne plus entrer en conflit avec "/:id"
+router.get(
+  "/search/:name",
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const books = await Books.find({
+        title: new RegExp(req.params.name as string, "i"),
+      });
+      res.status(200).json(books);
+    } catch (error) {
+      res.status(404).json({ error });
+    }
+  },
+);
+
 router.get("/:id", async (req: express.Request, res: express.Response) => {
   try {
     const book = await Books.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
     res.status(200).json(book);
   } catch (error) {
     res.status(400).json({ error });
   }
 });
 
-router.put("/:id", async (req: express.Request, res: express.Response) => {
-  try {
-    const book = await Books.findByIdAndUpdate(req.params.id, req.body, {
-      returnDocument: "after",
-    });
-    res.status(200).json(book);
-  } catch (error) {
-    res.status(400).json({ error });
-  }
-});
+router.put(
+  "/:id",
+  upload.fields([{ name: "book" }, { name: "image" }]),
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const payload = normalizeBookPayload(req);
+      const book = await Books.findByIdAndUpdate(req.params.id, payload, {
+        new: true,
+      });
+      res.status(200).json(book);
+    } catch (error) {
+      res.status(400).json({ error });
+    }
+  },
+);
 
 router.delete("/:id", async (req: express.Request, res: express.Response) => {
   try {
@@ -81,19 +150,40 @@ router.delete("/:id", async (req: express.Request, res: express.Response) => {
     res.status(400).json({ error });
   }
 });
+
 router.post(
   "/:id/rating",
   async (req: express.Request, res: express.Response) => {
     try {
-      const rating = new Ratings({
-        userId: req.body.userId,
-        bookId: req.params.id,
-        rating: req.body.rating,
-      });
-      await rating.save();
-      res.status(201).json({
-        message: "Rating saved successfully!",
-      });
+      const { userId, rating } = req.body;
+
+      if (typeof rating !== "number" || rating < 0 || rating > 5) {
+        return res
+          .status(400)
+          .json({ message: "La note doit être un nombre entre 0 et 5" });
+      }
+
+      const book = await Books.findById(req.params.id);
+      if (!book) {
+        return res.status(404).json({ message: "Livre introuvable" });
+      }
+
+      const alreadyRated = book.ratings.some((r) => r.userId === userId);
+      if (alreadyRated) {
+        return res
+          .status(400)
+          .json({ message: "Cet utilisateur a déjà noté ce livre" });
+      }
+
+      book.ratings.push({ userId, grade: rating });
+      const totalRating = book.ratings.reduce(
+        (sum, r) => sum + Number(r.grade ?? 0),
+        0,
+      );
+      book.averageRating = totalRating / book.ratings.length;
+
+      await book.save();
+      res.status(201).json(book);
     } catch (error) {
       res.status(400).json({ error });
     }
