@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
-import authRoutes from "./routes/auth.ts";
+import authRoutes from "./middleware/auth.ts";
 import bookRoutes from "./routes/stuff.ts";
 
 const app = express();
