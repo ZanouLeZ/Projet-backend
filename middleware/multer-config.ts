@@ -1,20 +1,51 @@
 import multer from "multer";
+import path from "node:path";
 
-const MIME_TYPES = {
+const MIME_TYPES: Record<string, string> = {
   "image/jpg": "jpg",
   "image/jpeg": "jpg",
   "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/avif": "avif",
 };
 
 const storage = multer.diskStorage({
-  destination: (req, file, callback) => {
+  destination: (_req, _file, callback) => {
     callback(null, "images");
   },
-  filename: (req, file, callback) => {
-    const name = file.originalname.split(" ").join("_");
+
+  filename: (_req, file, callback) => {
     const extension = MIME_TYPES[file.mimetype];
-    callback(null, name + Date.now() + "." + extension);
+
+    if (!extension) {
+      return callback(
+        new Error(`Type d'image non supporté : ${file.mimetype}`),
+        "",
+      );
+    }
+
+    const name = path
+      .parse(file.originalname)
+      .name.replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9_-]/g, "");
+
+    callback(null, `${name}-${Date.now()}.${extension}`);
   },
 });
 
-export default multer({ storage: storage }).single("image");
+const fileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
+  if (!MIME_TYPES[file.mimetype]) {
+    return callback(new Error(`Format non autorisé : ${file.mimetype}`));
+  }
+
+  callback(null, true);
+};
+
+export default multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+}).single("image");

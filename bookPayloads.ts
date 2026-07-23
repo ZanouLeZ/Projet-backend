@@ -40,12 +40,19 @@ const normalizeBookPayload = (req: express.Request) => {
     payload.averageRating ?? payload.rating ?? firstRating.grade ?? 0,
   );
 
+  // URL de l'image uploadée par Multer
+  const uploadedImageUrl = req.file
+    ? `${req.protocol}://${req.get("host")}/images/${req.file.filename}`
+    : undefined;
+
   return {
     userId: payload.userId ?? "anonymous",
     title: payload.title ?? "Sans titre",
     author: payload.author ?? "Auteur inconnu",
     imageUrl:
-      payload.imageUrl ?? "https://via.placeholder.com/300x450?text=Book",
+      uploadedImageUrl ??
+      payload.imageUrl ??
+      "https://via.placeholder.com/300x450?text=Book",
     year: Number(payload.year ?? 0),
     genre: payload.genre ?? "Non spécifié",
     ratings: normalizedRatings,
