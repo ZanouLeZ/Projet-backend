@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { required } from "../utils.ts";
+import { required } from "../utils/utils.ts";
 
 const ratingSchema = new mongoose.Schema(
   {
