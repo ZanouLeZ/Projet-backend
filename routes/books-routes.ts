@@ -1,7 +1,28 @@
+import path from "node:path";
+import { unlink } from "node:fs/promises";
 import express from "express";
 import Books from "../models/books.ts";
 import normalizeBookPayload from "../bookPayloads.ts";
 import multer from "../middleware/multer-config.ts";
+
+const deleteBookImage = async (imageUrl?: string | number | null) => {
+  if (!imageUrl) return;
+
+  try {
+    const imageUrlString =
+      typeof imageUrl === "string" ? imageUrl : String(imageUrl ?? "");
+    const parsedUrl = new URL(imageUrlString, "http://localhost");
+    const filename = path.basename(parsedUrl.pathname);
+
+    if (!filename) return;
+
+    await unlink(path.resolve(process.cwd(), "images", filename));
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") {
+      console.error("Unable to delete image", error);
+    }
+  }
+};
 
 const router = express.Router();
 
@@ -71,7 +92,17 @@ router.put(
   multer,
   async (req: express.Request, res: express.Response) => {
     try {
-      const payload = normalizeBookPayload(req);
+      const existingBook = await Books.findById(req.params.id);
+      if (!existingBook) {
+        return res.status(404).json({ message: "Book not found" });
+      }
+
+      const payload = normalizeBookPayload(req, existingBook);
+
+      if (req.file || payload.imageUrl === "") {
+        await deleteBookImage(existingBook.imageUrl);
+      }
+
       const book = await Books.findByIdAndUpdate(req.params.id, payload, {
         new: true,
       });
@@ -84,6 +115,12 @@ router.put(
 
 router.delete("/:id", async (req: express.Request, res: express.Response) => {
   try {
+    const book = await Books.findById(req.params.id);
+    if (!book) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    await deleteBookImage(book.imageUrl);
     await Books.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "Book deleted successfully!" });
   } catch (error) {

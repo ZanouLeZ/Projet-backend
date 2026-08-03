@@ -49,3 +49,6 @@ export default multer({
     fileSize: 5 * 1024 * 1024,
   },
 }).single("image");
+//convertir en webp
+//modification de la taille de l'image
+//verifier le type de l'image

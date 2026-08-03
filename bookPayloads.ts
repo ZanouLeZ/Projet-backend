@@ -19,7 +19,10 @@ const parseBookPayload = (req: express.Request) => {
   return candidate;
 };
 
-const normalizeBookPayload = (req: express.Request) => {
+const normalizeBookPayload = (
+  req: express.Request,
+  existingBook?: { imageUrl?: string | number | null },
+) => {
   const payload = parseBookPayload(req) as Record<string, any>;
   const inputRatings = Array.isArray(payload.ratings) ? payload.ratings : [];
   const firstRating = inputRatings[0] ?? {};
@@ -45,14 +48,22 @@ const normalizeBookPayload = (req: express.Request) => {
     ? `${req.protocol}://${req.get("host")}/images/${req.file.filename}`
     : undefined;
 
+  const explicitImageRemoval =
+    payload.imageUrl === "" || payload.imageUrl === null;
+
+  const resolvedImageUrl = uploadedImageUrl
+    ? uploadedImageUrl
+    : explicitImageRemoval
+      ? ""
+      : (payload.imageUrl ??
+        existingBook?.imageUrl ??
+        "https://via.placeholder.com/300x450?text=Book");
+
   return {
     userId: payload.userId ?? "anonymous",
     title: payload.title ?? "Sans titre",
     author: payload.author ?? "Auteur inconnu",
-    imageUrl:
-      uploadedImageUrl ??
-      payload.imageUrl ??
-      "https://via.placeholder.com/300x450?text=Book",
+    imageUrl: resolvedImageUrl,
     year: Number(payload.year ?? 0),
     genre: payload.genre ?? "Non spécifié",
     ratings: normalizedRatings,
