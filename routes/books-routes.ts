@@ -1,6 +1,7 @@
 import path from "node:path";
 import { unlink } from "node:fs/promises";
 import express from "express";
+import protectRoute from "../middleware/protected-routes.ts";
 import Books from "../models/books.ts";
 import normalizeBookPayload from "../bookPayloads.ts";
 import multer from "../middleware/multer-config.ts";
@@ -29,6 +30,7 @@ const router = express.Router();
 router.post(
   "/",
   multer,
+  protectRoute,
   async (req: express.Request, res: express.Response) => {
     try {
       const payload = normalizeBookPayload(req);
@@ -86,10 +88,11 @@ router.get("/:id", async (req: express.Request, res: express.Response) => {
     res.status(400).json({ error });
   }
 });
-// .fields([{ name: "book" }, { name: "image" }])
+
 router.put(
   "/:id",
   multer,
+  protectRoute,
   async (req: express.Request, res: express.Response) => {
     try {
       const existingBook = await Books.findById(req.params.id);
@@ -113,23 +116,28 @@ router.put(
   },
 );
 
-router.delete("/:id", async (req: express.Request, res: express.Response) => {
-  try {
-    const book = await Books.findById(req.params.id);
-    if (!book) {
-      return res.status(404).json({ message: "Book not found" });
-    }
+router.delete(
+  "/:id",
+  protectRoute,
+  async (req: express.Request, res: express.Response) => {
+    try {
+      const book = await Books.findById(req.params.id);
+      if (!book) {
+        return res.status(404).json({ message: "Book not found" });
+      }
 
-    await deleteBookImage(book.imageUrl);
-    await Books.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Book deleted successfully!" });
-  } catch (error) {
-    res.status(400).json({ error });
-  }
-});
+      await deleteBookImage(book.imageUrl);
+      await Books.findByIdAndDelete(req.params.id);
+      res.status(200).json({ message: "Book deleted successfully!" });
+    } catch (error) {
+      res.status(400).json({ error });
+    }
+  },
+);
 
 router.post(
   "/:id/rating",
+  protectRoute,
   async (req: express.Request, res: express.Response) => {
     try {
       const { userId, rating } = req.body;

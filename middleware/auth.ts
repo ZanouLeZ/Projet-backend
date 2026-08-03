@@ -1,7 +1,7 @@
-import crypto from "crypto";
 import express from "express";
 import mongoose from "mongoose";
 import User from "../models/users.ts";
+import { comparePassword, generateToken, hashPassword } from "./protected-routes.ts";
 
 const router = express.Router();
 
@@ -12,11 +12,6 @@ type StoredUser = {
 };
 
 const inMemoryUsers: StoredUser[] = [];
-
-const hashPassword = (password: string) =>
-  crypto.createHash("sha256").update(password).digest("hex");
-
-const createToken = () => crypto.randomBytes(16).toString("hex");
 
 const findUserByEmail = async (email: string) => {
   if (mongoose.connection.readyState === 1) {
@@ -79,15 +74,18 @@ router.post("/login", async (req: express.Request, res: express.Response) => {
       return res.status(401).json({ message: "Identifiants invalides" });
     }
 
-    const hashedPassword = hashPassword(password);
-    if (user.password !== hashedPassword) {
+    const isPasswordValid = comparePassword(
+      password,
+      String(user.password ?? ""),
+    );
+    if (!isPasswordValid) {
       return res.status(401).json({ message: "Identifiants invalides" });
     }
 
     return res.status(200).json({
       message: "Connexion réussie",
-      token: createToken(),
-      userId: user._id?.toString?.() ?? user._id,
+      token: generateToken(String(user._id?.toString?.() ?? user._id)),
+      userId: String(user._id?.toString?.() ?? user._id),
     });
   } catch (error) {
     console.error("Login error", error);
