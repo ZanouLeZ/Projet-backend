@@ -1,5 +1,8 @@
 import multer from "multer";
 import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import sharp from "sharp";
+import type { Request, Response, NextFunction } from "express";
 
 const MIME_TYPES: Record<string, string> = {
   "image/jpg": "jpg",
@@ -10,29 +13,7 @@ const MIME_TYPES: Record<string, string> = {
   "image/avif": "avif",
 };
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, callback) => {
-    callback(null, "images");
-  },
-
-  filename: (_req, file, callback) => {
-    const extension = MIME_TYPES[file.mimetype];
-
-    if (!extension) {
-      return callback(
-        new Error(`Type d'image non supporté : ${file.mimetype}`),
-        "",
-      );
-    }
-
-    const name = path
-      .parse(file.originalname)
-      .name.replace(/\s+/g, "_")
-      .replace(/[^a-zA-Z0-9_-]/g, "");
-
-    callback(null, `${name}-${Date.now()}.${extension}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 const fileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
   if (!MIME_TYPES[file.mimetype]) {
@@ -42,13 +23,55 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
   callback(null, true);
 };
 
-export default multer({
+const upload = multer({
   storage,
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
 }).single("image");
-//convertir en webp
-//modification de la taille de l'image
-//verifier le type de l'image
+
+const buildFileName = (originalName: string) => {
+  const name = path
+    .parse(originalName)
+    .name.replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+
+  return `${name}-${Date.now()}.webp`;
+};
+
+const uploadImage = (req: Request, res: Response, next: NextFunction) => {
+  upload(req as any, res as any, async (error: unknown) => {
+    if (error) {
+      return next(error);
+    }
+
+    if (!req.file) {
+      return next();
+    }
+
+    try {
+      const outputFileName = buildFileName(req.file.originalname);
+      const outputPath = path.resolve(process.cwd(), "images", outputFileName);
+
+      await mkdir(path.dirname(outputPath), { recursive: true });
+
+      const optimizedBuffer = await sharp(req.file.buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+
+      await writeFile(outputPath, optimizedBuffer);
+
+      req.file.filename = outputFileName;
+      req.file.path = outputPath;
+      req.file.mimetype = "image/webp";
+      req.file.originalname = outputFileName;
+      next();
+    } catch (processingError) {
+      next(processingError);
+    }
+  });
+};
+
+export default uploadImage;

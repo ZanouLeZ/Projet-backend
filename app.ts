@@ -2,7 +2,6 @@ import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
 import authRoutes from "./middleware/auth.ts";
-import protectRoute from "./middleware/protected-routes.ts";
 import bookRoutes from "./routes/books-routes.ts";
 import path from "node:path";
 
@@ -39,6 +38,6 @@ app.use(
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/books", protectRoute, bookRoutes);
+app.use("/api/books", bookRoutes);
 
 export default app;

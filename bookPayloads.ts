@@ -21,20 +21,31 @@ const parseBookPayload = (req: express.Request) => {
 
 const normalizeBookPayload = (
   req: express.Request,
-  existingBook?: { imageUrl?: string | number | null },
+  existingBook?: {
+    imageUrl?: string | number | null;
+    ratings?: Array<{ userId?: string | number; grade?: number | string }>;
+  },
 ) => {
   const payload = parseBookPayload(req) as Record<string, any>;
-  const inputRatings = Array.isArray(payload.ratings) ? payload.ratings : [];
+  const authenticatedUserId = req.user?._id
+    ? String(req.user._id)
+    : "anonymous";
+  const existingRatings = Array.isArray(existingBook?.ratings)
+    ? existingBook.ratings
+    : [];
+  const inputRatings = Array.isArray(payload.ratings)
+    ? payload.ratings
+    : existingRatings;
   const firstRating = inputRatings[0] ?? {};
 
   const normalizedRatings = inputRatings.map((rating: any) => ({
-    userId: rating.userId ?? payload.userId ?? "anonymous",
+    userId: authenticatedUserId,
     grade: Number(rating.grade ?? 0),
   }));
 
   if (payload.rating !== undefined && normalizedRatings.length === 0) {
     normalizedRatings.push({
-      userId: payload.userId ?? "anonymous",
+      userId: authenticatedUserId,
       grade: Number(payload.rating ?? 0),
     });
   }
@@ -60,7 +71,7 @@ const normalizeBookPayload = (
         "https://via.placeholder.com/300x450?text=Book");
 
   return {
-    userId: payload.userId ?? "anonymous",
+    userId: authenticatedUserId,
     title: payload.title ?? "Sans titre",
     author: payload.author ?? "Auteur inconnu",
     imageUrl: resolvedImageUrl,

@@ -100,6 +100,12 @@ router.put(
         return res.status(404).json({ message: "Book not found" });
       }
 
+      if (String(existingBook.userId) !== String(req.user?._id ?? "")) {
+        return res.status(403).json({
+          message: "Vous n'êtes pas autorisé à modifier ce livre",
+        });
+      }
+
       const payload = normalizeBookPayload(req, existingBook);
 
       if (req.file || payload.imageUrl === "") {
@@ -126,6 +132,12 @@ router.delete(
         return res.status(404).json({ message: "Book not found" });
       }
 
+      if (String(book.userId) !== String(req.user?._id ?? "")) {
+        return res.status(403).json({
+          message: "Vous n'êtes pas autorisé à supprimer ce livre",
+        });
+      }
+
       await deleteBookImage(book.imageUrl);
       await Books.findByIdAndDelete(req.params.id);
       res.status(200).json({ message: "Book deleted successfully!" });
@@ -140,7 +152,7 @@ router.post(
   protectRoute,
   async (req: express.Request, res: express.Response) => {
     try {
-      const { userId, rating } = req.body;
+      const { rating } = req.body;
 
       if (typeof rating !== "number" || rating < 0 || rating > 5) {
         return res
@@ -153,14 +165,21 @@ router.post(
         return res.status(404).json({ message: "Livre introuvable" });
       }
 
-      const alreadyRated = book.ratings.some((r) => r.userId === userId);
+      const authenticatedUserId = req.user?._id;
+      if (!authenticatedUserId) {
+        return res.status(401).json({ message: "Utilisateur non authentifié" });
+      }
+
+      const alreadyRated = book.ratings.some(
+        (r) => String(r.userId) === String(authenticatedUserId),
+      );
       if (alreadyRated) {
         return res
           .status(400)
           .json({ message: "Cet utilisateur a déjà noté ce livre" });
       }
 
-      book.ratings.push({ userId, grade: rating });
+      book.ratings.push({ userId: String(authenticatedUserId), grade: rating });
       const totalRating = book.ratings.reduce(
         (sum, r) => sum + Number(r.grade ?? 0),
         0,
