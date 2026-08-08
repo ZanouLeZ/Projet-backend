@@ -22,7 +22,7 @@ export const comparePassword = (password: string, hashedPassword: string) =>
   bcrypt.compareSync(password, hashedPassword);
 
 export const generateToken = (userId: string) =>
-  jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+  jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7h" });
 
 export const protectRoute = async (
   req: express.Request,
