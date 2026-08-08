@@ -15,9 +15,11 @@ const MIME_TYPES: Record<string, string> = {
 
 const storage = multer.memoryStorage();
 
+export class ImageUploadError extends Error {}
+
 const fileFilter: multer.Options["fileFilter"] = (_req, file, callback) => {
   if (!MIME_TYPES[file.mimetype]) {
-    return callback(new Error(`Format non autorisé : ${file.mimetype}`));
+    return callback(new ImageUploadError("Format d'image non autorisé"));
   }
 
   callback(null, true);

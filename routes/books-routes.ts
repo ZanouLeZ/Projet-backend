@@ -27,6 +27,24 @@ const deleteBookImage = async (imageUrl?: string | number | null) => {
 
 const router = express.Router();
 
+const sendBookError = (
+  res: express.Response,
+  error: unknown,
+  fallbackMessage: string,
+) => {
+  console.error(fallbackMessage, error);
+
+  if ((error as { name?: string })?.name === "CastError") {
+    return res.status(400).json({ message: "Identifiant de livre invalide" });
+  }
+
+  if ((error as { name?: string })?.name === "ValidationError") {
+    return res.status(400).json({ message: "Données du livre invalides" });
+  }
+
+  return res.status(500).json({ message: fallbackMessage });
+};
+
 router.post(
   "/",
   multer,
@@ -38,8 +56,7 @@ router.post(
       await book.save();
       res.status(201).json(book);
     } catch (error) {
-      console.error(error);
-      res.status(400).json({ error });
+      return sendBookError(res, error, "Impossible de créer le livre");
     }
   },
 );
@@ -49,7 +66,7 @@ router.get("/", async (req: express.Request, res: express.Response) => {
     const books = await Books.find();
     res.status(200).json(books);
   } catch (error) {
-    res.status(400).json({ error });
+    return sendBookError(res, error, "Impossible de récupérer les livres");
   }
 });
 
@@ -60,7 +77,11 @@ router.get(
       const books = await Books.find().sort({ averageRating: -1 }).limit(3);
       res.status(200).json(books);
     } catch (error) {
-      res.status(400).json({ error });
+      return sendBookError(
+        res,
+        error,
+        "Impossible de récupérer les livres les mieux notés",
+      );
     }
   },
 );
@@ -74,7 +95,7 @@ router.get(
       });
       res.status(200).json(books);
     } catch (error) {
-      res.status(404).json({ error });
+      return sendBookError(res, error, "Impossible de rechercher les livres");
     }
   },
 );
@@ -82,10 +103,10 @@ router.get(
 router.get("/:id", async (req: express.Request, res: express.Response) => {
   try {
     const book = await Books.findById(req.params.id);
-    if (!book) return res.status(404).json({ message: "Book not found" });
+    if (!book) return res.status(404).json({ message: "Livre introuvable" });
     res.status(200).json(book);
   } catch (error) {
-    res.status(400).json({ error });
+    return sendBookError(res, error, "Impossible de récupérer le livre");
   }
 });
 
@@ -97,7 +118,7 @@ router.put(
     try {
       const existingBook = await Books.findById(req.params.id);
       if (!existingBook) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ message: "Livre introuvable" });
       }
 
       if (String(existingBook.userId) !== String(req.user?._id ?? "")) {
@@ -117,7 +138,7 @@ router.put(
       });
       res.status(200).json(book);
     } catch (error) {
-      res.status(400).json({ error });
+      return sendBookError(res, error, "Impossible de modifier le livre");
     }
   },
 );
@@ -129,7 +150,7 @@ router.delete(
     try {
       const book = await Books.findById(req.params.id);
       if (!book) {
-        return res.status(404).json({ message: "Book not found" });
+        return res.status(404).json({ message: "Livre introuvable" });
       }
 
       if (String(book.userId) !== String(req.user?._id ?? "")) {
@@ -140,9 +161,9 @@ router.delete(
 
       await deleteBookImage(book.imageUrl);
       await Books.findByIdAndDelete(req.params.id);
-      res.status(200).json({ message: "Book deleted successfully!" });
+      res.status(200).json({ message: "Livre supprimé avec succès" });
     } catch (error) {
-      res.status(400).json({ error });
+      return sendBookError(res, error, "Impossible de supprimer le livre");
     }
   },
 );
@@ -189,7 +210,7 @@ router.post(
       await book.save();
       res.status(201).json(book);
     } catch (error) {
-      res.status(400).json({ error });
+      return sendBookError(res, error, "Impossible d'ajouter la note");
     }
   },
 );
