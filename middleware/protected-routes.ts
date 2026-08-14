@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export const hashPassword = (password: string) => bcrypt.hashSync(password, 10);
 
