@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import normalizeBookPayload from "../../bookPayloads.ts";
+import normalizeBookPayload from "../../utils/books/bookPayloads.ts";
 import Books from "../../models/books.ts";
 import sendBookError from "../../utils/books/send-book-error.ts";
 

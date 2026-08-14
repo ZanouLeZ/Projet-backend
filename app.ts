@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
-import authRoutes from "./middleware/auth.ts";
+import authRoutes from "./routes/auth-routes.ts";
 import bookRoutes from "./routes/books-routes.ts";
 import path from "node:path";
 import multer from "multer";

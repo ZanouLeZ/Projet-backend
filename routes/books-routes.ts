@@ -12,12 +12,12 @@ import protectRoute from "../middleware/protected-routes.ts";
 
 const router = express.Router();
 
-router.post("/", protectRoute, createBook, multer);
+router.post("/", protectRoute, multer, createBook);
 router.get("/", getAllBooks);
 router.get("/bestrating", getBestRatedBooks);
 router.get("/search/:name", searchBooks);
 router.get("/:id", getOneBook);
-router.put("/:id", protectRoute, updateBook, multer);
+router.put("/:id", protectRoute, multer, updateBook);
 router.delete("/:id", protectRoute, deleteBook);
 router.post("/:id/rating", protectRoute, rateBook);
 

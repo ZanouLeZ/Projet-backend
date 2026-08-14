@@ -22,8 +22,14 @@ const parseBookPayload = (req: express.Request) => {
 const normalizeBookPayload = (
   req: express.Request,
   existingBook?: {
+    userId?: string | number | null;
+    title?: string | number | null;
+    author?: string | number | null;
     imageUrl?: string | number | null;
+    year?: string | number | null;
+    genre?: string | number | null;
     ratings?: Array<{ userId?: string | number; grade?: number | string }>;
+    averageRating?: number | null;
   },
 ) => {
   const payload = parseBookPayload(req) as Record<string, any>;
@@ -39,7 +45,7 @@ const normalizeBookPayload = (
   const firstRating = inputRatings[0] ?? {};
 
   const normalizedRatings = inputRatings.map((rating: any) => ({
-    userId: authenticatedUserId,
+    userId: String(rating.userId ?? authenticatedUserId),
     grade: Number(rating.grade ?? 0),
   }));
 
@@ -51,7 +57,11 @@ const normalizeBookPayload = (
   }
 
   const averageRating = Number(
-    payload.averageRating ?? payload.rating ?? firstRating.grade ?? 0,
+    payload.averageRating ??
+      payload.rating ??
+      existingBook?.averageRating ??
+      firstRating.grade ??
+      0,
   );
 
   // URL de l'image uploadée par Multer
@@ -71,12 +81,12 @@ const normalizeBookPayload = (
         "https://via.placeholder.com/300x450?text=Book");
 
   return {
-    userId: authenticatedUserId,
-    title: payload.title ?? "Sans titre",
-    author: payload.author ?? "Auteur inconnu",
+    userId: String(existingBook?.userId ?? authenticatedUserId),
+    title: payload.title ?? existingBook?.title ?? "Sans titre",
+    author: payload.author ?? existingBook?.author ?? "Auteur inconnu",
     imageUrl: resolvedImageUrl,
-    year: Number(payload.year ?? 0),
-    genre: payload.genre ?? "Non spécifié",
+    year: Number(payload.year ?? existingBook?.year ?? 0),
+    genre: payload.genre ?? existingBook?.genre ?? "Non spécifié",
     ratings: normalizedRatings,
     averageRating: normalizedRatings.length
       ? normalizedRatings.reduce(
